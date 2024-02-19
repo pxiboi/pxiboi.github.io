@@ -81,7 +81,7 @@
     var secondPart = (Math.random() * 46656) | 0;
     firstPart = ("000" + firstPart.toString(36)).slice(-3);
     secondPart = ("000" + secondPart.toString(36)).slice(-3);
-    return firstPart + secondPart;
+    return String(firstPart + secondPart).toUpperCase();
 }
     
     function popular_campos_formulario() {
@@ -112,7 +112,7 @@
 			localStorage.setItem("arqreq", arquivos["arqreq"]);
 			localStorage.setItem("arqreq_nome", arquivos["arqreq_nome"]);
 		}else {localStorage.removeItem("arqreq");localStorage.removeItem("arqreq_nome");}
-		window.location.reload();
+		
 	}
 	function alterar_arquivo(campo){
 		console.log(campo);
@@ -229,7 +229,7 @@ var data_nasc;
 			{
 				data_adm = data_vinc;
 			}
-      dia_val=Math.round((data_desvinc-data_vinc)/ (1000 * 60 * 60 * 24));
+      dia_val=Math.round((data_desvinc-data_vinc)/ (1000 * 60 * 60 * 24))+1;
       
       linha = document.getElementById("li0");
       clone = linha.cloneNode(true);
@@ -346,7 +346,16 @@ var data_nasc;
 		console.log(tabela_dados);
 		salvar_campos_formulario();
 		popular_pdf(tabela_dados);
-		
+		let ele;
+		for (let i=0; i<5; i++)
+		{
+			ele = document.getElementById("li"+String(i+1))
+			if (ele)
+			{
+				ele.remove();
+			}
+		}
+			
 		
 	}
 	function formatarcpf(cpf)
