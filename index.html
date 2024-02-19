@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <h1>Gerador de Certidão</h1>
+    <h4>Versão 2.0</h4>
+    <table id='form_inicial' style="display: block">
+    <tr>
+		<td>Modelo da Certidão (.pdf)</td>
+		<td><input id="modcert" type="file" accept=".pdf" style="color:transparent;"></input></td>
+		<td><span id="statmod">Nenhum arquivo carregado</text></td>
+		<td><button onclick="remov_arquivo('modcert')">Limpar</button></td>
+	</tr>
+	<tr>
+		<td>Requerimento (.xls)</td>
+		<td><input id="arqreq" type="file" accept=".xls" style="color:transparent;"></input></td>
+		<td><span id="statreq">Nenhum arquivo carregado</span></td>
+		<td><button onclick="remov_arquivo('arqreq')">Limpar</button></td>
+	</tr>
+	<tr>
+		<td>Código da Certidão</td>
+		<td><input id="codcert"></td><td></td>
+	</tr>
+	<tr>
+		<td>Nome do Emissor</td>
+		<td colspan="2"><input id="nomeemi" size="50" ></td>
+	</tr>
+	<tr>
+		<td>Matrícula Emissor</td>
+		<td><input id="matemi"></td><td></td>
+	</tr>
+	<tr>
+		<td>Matrícula Desejada</td>
+		<td><input id="matdes"></td><td></td>
+	</tr>
+	<tr>
+		<td></td><td><button onclick="obter_periodos();">Gerar Certidão</button></td>
+	</tr>
+	</table>
+  
+  <div id='alterar_periodo' style="display: none">
+    <span>Confirme os periodos abaixo:</span>
+    <table id="tbperiodo" class="tbp">
+    <tr>
+		  <th>Período</th>
+		  <th>Dias</th>
+	</tr>
+      <tr id="li0" style="display: none;text-align: center;" >
+		<td>
+			  <span></span>
+		</td>
+		<td>
+			<input type="number" size="6"></input>
+		</td>
+		</tr>
+    </table>
+    <button onclick="finalizar_certidao();">Confirmar</button>
+  </div>
+
+  </head>
+ <style>
+ .tbp {
+  table, th, td {
+  border: 1px solid black;
+  border-collapse: collapse;
+ }
+}
+ </style>
+<script src="https://unpkg.com/pdf-lib"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xls/0.7.4-a/xls.js"></script>
+  <body>
+  <script>
+    
+    let arquivos = {"arqreq":null,"modcert":null,"arqreq_nome":null,"modcert_nome":null};
+     document.getElementById("arqreq").addEventListener('change',(e)=>alterar_arquivo("arqreq"));
+     document.getElementById("modcert").addEventListener('change',(e)=>alterar_arquivo("modcert"));
+    const { PDFDocument, StandardFonts, rgb } = PDFLib
+    
+    function generateUID() {
+    var firstPart = (Math.random() * 46656) | 0;
+    var secondPart = (Math.random() * 46656) | 0;
+    firstPart = ("000" + firstPart.toString(36)).slice(-3);
+    secondPart = ("000" + secondPart.toString(36)).slice(-3);
+    return firstPart + secondPart;
+}
+    
+    function popular_campos_formulario() {
+		document.getElementById("nomeemi").value = localStorage.getItem("nomeemi");
+		document.getElementById("matemi").value = localStorage.getItem("matemi");
+		var dadosmod = localStorage.getItem("modcert");
+		var dadosreq = localStorage.getItem("arqreq");
+		if (dadosmod!=undefined){
+			arquivos['modcert']=dadosmod;
+			arquivos['modcert_nome']=localStorage.getItem("modcert_nome");;
+		}
+		if (dadosreq!=undefined){
+			arquivos['arqreq']=dadosreq;
+			arquivos['arqreq_nome']=localStorage.getItem("arqreq_nome");
+		}
+		atualizar_status_arquivos();
+	}
+	function salvar_campos_formulario() {
+		localStorage.setItem("nomeemi", document.getElementById("nomeemi").value);
+		localStorage.setItem("matemi", document.getElementById("matemi").value);
+		if (arquivos["modcert"]!=null){
+			localStorage.setItem("modcert", arquivos["modcert"]);
+			localStorage.setItem("modcert_nome", arquivos["modcert_nome"]);
+		}
+		else {localStorage.removeItem("modcert");localStorage.removeItem("modcert_nome");}
+		
+		if (arquivos["arqreq"]!=null){
+			localStorage.setItem("arqreq", arquivos["arqreq"]);
+			localStorage.setItem("arqreq_nome", arquivos["arqreq_nome"]);
+		}else {localStorage.removeItem("arqreq");localStorage.removeItem("arqreq_nome");}
+		window.location.reload();
+	}
+	function alterar_arquivo(campo){
+		console.log(campo);
+		var files = document.getElementById(campo).files;
+		if (files == null|| files.length==0) {return;}
+		var reader = new FileReader();
+		let file=files[0]
+		
+		reader.readAsDataURL(file);
+		reader.onload = function () {
+			arquivos[campo]=reader.result;
+			arquivos[campo+"_nome"]=file.name;
+			atualizar_status_arquivos();
+		};
+		reader.onerror = function (error) {
+			console.log('Error: ', error);
+			};
+		
+	}
+	function atualizar_status_arquivos()
+	{
+		document.getElementById("statmod").textContent = arquivos['modcert']==null?"Nenhum arquivo carregado":arquivos["modcert_nome"];
+		document.getElementById("statreq").textContent = arquivos['arqreq']==null?"Nenhum arquivo carregado":arquivos["arqreq_nome"];
+	}
+	function remov_arquivo(campo){
+		arquivos[campo]=null;
+		atualizar_status_arquivos();
+	}	
+	
+	
+	function ler_arq_req()
+	{
+		var dados=arquivos['arqreq'].substr(arquivos['arqreq'].indexOf(',')+1);
+		var wb=XLS.read(dados.replace(/_/g, "/").replace(/-/g, "+"), {type:'base64'})
+		var ws=wb.Sheets['DADOS REQUERIMENTO'];
+		return XLS.utils.sheet_to_json(ws,{range:3})
+	}	
+	async function popular_pdf(dados){
+		let pdfDoc = await PDFDocument.load(arquivos['modcert']);
+		const form = pdfDoc.getForm();
+		
+		const fields = form.getFields();
+		for (var field of fields)
+		{
+			field.setText(String(dados[field.getName()]));
+		} 
+		form.flatten()
+		const pdfBytes = await pdfDoc.save();
+		var bytes = new Uint8Array(pdfBytes);
+		var blob = new Blob([bytes], {type: "application/pdf"});
+		var link = document.createElement("a");
+		link.href = window.URL.createObjectURL(blob);
+		link.download = "myFileName.pdf";
+		link.click();
+
+
+	}
+	function converter_data(data){
+		let partes = data.split('/');
+		return new Date(partes[2],partes[1],partes[0]);
+	}
+var nome_emissor;
+var tmat_emissor;
+var mat_desejada;
+var dados_req;    
+var codigo_cert;    
+var hoje = new Date();
+var data_adm;
+var data_nasc;
+  
+	function obter_periodos(){
+		
+		nome_emissor = document.getElementById('nomeemi').value;
+		mat_emissor = document.getElementById('matemi').value;
+		mat_desejada = document.getElementById('matdes').value;
+		
+		//Verificando se os dados necessários foram preenchidos...
+		if( nome_emissor=="" ||
+			mat_emissor=="" ||
+			mat_desejada=="" ||
+			arquivos['arqreq']==null ||
+			arquivos['modcert']==null)
+		{
+			alert("Certifique-se que todos os campos necessários estão preenchidos.");
+			return
+		}
+
+		dados_req=ler_arq_req();
+		
+		dados_req = dados_req.filter((linha) => linha["MATRÍCULA"]==mat_desejada)
+		if (dados_req==null || dados_req.length==0)
+		{
+			alert("Matrícula desejada não encontrada.");
+			return;
+		}
+		
+		codigo_cert = document.getElementById("codcert").value;
+		codigo_cert = codigo_cert==""?generateUID():codigo_cert;
+		
+		
+		let data_vinc="";
+		data_adm = converter_data(dados_req[0]['DATA DE INGRESSO NA ORIGEM']);
+		data_nasc= converter_data(dados_req[0]["DATA NASC."]);
+		let data_desvinc = "";
+		let dia_val;
+    var linha;
+		var clone;
+    var tabelap=document.getElementById("tbperiodo")
+    for (let i=0; i<dados_req.length; i++)
+		{
+			data_desvinc= converter_data(dados_req[i]["DATA DE DESVINCULAÇÃO NA ORIGEM"]);
+			data_vinc=converter_data(dados_req[i]['DATA DE INGRESSO NA ORIGEM']);
+			if (data_vinc<data_adm)
+			{
+				data_adm = data_vinc;
+			}
+      dia_val=Math.round((data_desvinc-data_vinc)/ (1000 * 60 * 60 * 24));
+      
+      linha = document.getElementById("li0");
+      clone = linha.cloneNode(true);
+      clone.id = "li"+String(i+1);
+      tabelap.appendChild(clone);
+      clone.querySelector("td span").textContent=String(i+1);
+	  clone.querySelector("td input").value=String(dia_val);
+	  clone.querySelector("td input").id = "pe"+String(i+1);
+      clone.style.display='table-row';
+      
+      
+    }
+    document.getElementById("form_inicial").style.display="none";
+    document.getElementById("alterar_periodo").style.display="block";
+    
+  }
+  
+  function finalizar_certidao(){
+    document.getElementById("form_inicial").style.display="block";
+    document.getElementById("alterar_periodo").style.display="none";
+    
+    let dias=0;
+		let meses=0;
+		let anos=0;
+		let tempos=[];
+		let total_dias=0;
+    
+    
+    for (let i=0; i<dados_req.length; i++)
+    {
+		
+		data_desvinc= converter_data(dados_req[i]["DATA DE DESVINCULAÇÃO NA ORIGEM"]);
+		data_vinc=converter_data(dados_req[i]['DATA DE INGRESSO NA ORIGEM']);
+		dias = document.getElementById("pe"+String(i+1)).value;
+		total_dias+=dias;
+		anos=Math.floor(dias/365);
+		dias= dias-anos*365;
+		meses = Math.floor(dias/30);
+		dias = dias - meses*30;
+		
+		tempos.push({
+			"de":data_vinc.toLocaleDateString("pt-BR"),
+			"ate":data_desvinc.toLocaleDateString("pt-BR"),
+			"dias":dias,
+			"meses":meses,
+			"anos":anos});
+		}
+	while (tempos.length<5)
+	{
+			tempos.push({
+				"de":"",
+				"ate":"",
+				"dias":"",
+				"meses":"",
+				"anos":""});
+		}
+		
+		let tot_dias=total_dias;
+		let tot_anos=Math.floor(tot_dias/365);
+		tot_dias= tot_dias-tot_anos*365;
+		let tot_meses = Math.floor(tot_dias/30);
+		tot_dias= tot_dias - tot_meses*30;
+		
+		let tot_tempo = tot_anos==0?"":(String(tot_anos)+" ano(s),");
+		tot_tempo =  tot_tempo + (tot_meses==0?"":(String(tot_meses)+" mês(es),"));
+		tot_tempo =  tot_tempo + (tot_dias==0?"":(String(tot_dias)+" dia(s)"));
+		tot_tempo = tot_tempo[-1]==","?tot_tempo.slice(0, -1):tot_tempo;
+		tot_tempo = tot_tempo.replace(/,/g,", ");
+		
+		let tabela_dados={'cargo': dados_req[0]["CARGO"],
+			'codigo': codigo_cert,
+			'cpf': formatarcpf(dados_req[0]['CPF']),
+			'data_adm': data_adm.toLocaleDateString("pt-BR"),
+			'data_ate_1': tempos[0]['ate'],
+			'data_ate_2': tempos[1]['ate'],
+			'data_ate_3': tempos[2]['ate'],
+			'data_ate_4': tempos[3]['ate'],
+			'data_ate_5': tempos[4]['ate'],
+			'data_de_1': tempos[0]['de'],
+			'data_de_2': tempos[1]['de'],
+			'data_de_3': tempos[2]['de'],
+			'data_de_4': tempos[3]['de'],
+			'data_de_5': tempos[4]['de'],
+			'data_emissao': "Rio de Janeiro, "+ hoje.toLocaleDateString("pt-BR") ,
+			'data_nasc': data_nasc.toLocaleDateString("pt-BR"),
+			'delta_ano_1': tempos[0]['anos'],
+			'delta_ano_2': tempos[1]['anos'],
+			'delta_ano_3': tempos[2]['anos'],
+			'delta_ano_4': tempos[3]['anos'],
+			'delta_ano_5': tempos[4]['anos'],
+			'delta_ano_tot': tot_anos,
+			'delta_dia_1': tempos[0]['dias'],
+			'delta_dia_2': tempos[1]['dias'],
+			'delta_dia_3': tempos[2]['dias'],
+			'delta_dia_4': tempos[3]['dias'],
+			'delta_dia_5': tempos[4]['dias'],
+			'delta_dia_tot': tot_dias,
+			'delta_mes_1': tempos[0]['meses'],
+			'delta_mes_2': tempos[1]['meses'],
+			'delta_mes_3': tempos[2]['meses'],
+			'delta_mes_4': tempos[3]['meses'],
+			'delta_mes_5': tempos[4]['meses'],
+			'delta_mes_tot': tot_meses,
+			'elaborador': nome_emissor + " - Mat: "+mat_emissor,
+			'filiacao': dados_req[0]["NOME DA MÃE"],
+			'mat_serv': mat_desejada,
+			'nome_serv': dados_req[0]["NOME DO APOSENTADO"],
+			'pis_pasep': dados_req[0]["NIT"].replace("N",""),
+			'processo': dados_req[0]["PROCESSO"].replace("P",""),
+			'total_dias': total_dias,
+			'total_tempo': tot_tempo};
+			
+		
+		console.log(tabela_dados);
+		salvar_campos_formulario();
+		popular_pdf(tabela_dados);
+		
+		
+	}
+	function formatarcpf(cpf)
+	{
+		cpf=cpf.replace(/\D/g,'')
+		return cpf.slice(0,3)+"."+cpf.slice(3,6)+"."+cpf.slice(6,9)+"-"+cpf.slice(9,11);
+	}
+	popular_campos_formulario();
+  </script>
+</html>
+
