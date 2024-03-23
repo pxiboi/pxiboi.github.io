@@ -172,6 +172,7 @@
 	}
 	function converter_data(data){
 		let partes = data.split('/');
+		partes[1] = String(Number(partes[1])-1)
 		return new Date(partes[2],partes[1],partes[0]);
 	}
 var nome_emissor;
