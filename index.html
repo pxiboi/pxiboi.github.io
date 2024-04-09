@@ -72,17 +72,21 @@
   <script>
     
     let arquivos = {"arqreq":null,"modcert":null,"arqreq_nome":null,"modcert_nome":null};
+     
      document.getElementById("arqreq").addEventListener('change',(e)=>alterar_arquivo("arqreq"));
      document.getElementById("modcert").addEventListener('change',(e)=>alterar_arquivo("modcert"));
     const { PDFDocument, StandardFonts, rgb } = PDFLib
     
-    function generateUID() {
-    var firstPart = (Math.random() * 46656) | 0;
-    var secondPart = (Math.random() * 46656) | 0;
-    firstPart = ("000" + firstPart.toString(36)).slice(-3);
-    secondPart = ("000" + secondPart.toString(36)).slice(-3);
-    return String(firstPart + secondPart).toUpperCase();
+	function getRandomInt(min, max) {
+	  min = Math.ceil(min);
+	  max = Math.floor(max);
+	  return Math.floor(Math.random() * (max - min) + min);
+	}
+
+    function sumDigits(n) { 
+    return (--n % 9) + 1;
 }
+    
     
     function popular_campos_formulario() {
 		document.getElementById("nomeemi").value = localStorage.getItem("nomeemi");
@@ -130,6 +134,7 @@
 		reader.onerror = function (error) {
 			console.log('Error: ', error);
 			};
+		document.getElementById(campo).value = null;
 		
 	}
 	function atualizar_status_arquivos()
@@ -211,7 +216,10 @@ var data_nasc;
 		}
 		
 		codigo_cert = document.getElementById("codcert").value;
-		codigo_cert = codigo_cert==""?generateUID():codigo_cert;
+		if (codigo_cert==""){
+			let cod = getRandomInt(0,10e11);
+			codigo_cert = String(cod).padStart(11,'0') + '-' + String(sumDigits(cod)).slice(-1);
+		}
 		
 		
 		let data_vinc="";
