@@ -72,17 +72,21 @@
   <script>
     
     let arquivos = {"arqreq":null,"modcert":null,"arqreq_nome":null,"modcert_nome":null};
+     
      document.getElementById("arqreq").addEventListener('change',(e)=>alterar_arquivo("arqreq"));
      document.getElementById("modcert").addEventListener('change',(e)=>alterar_arquivo("modcert"));
     const { PDFDocument, StandardFonts, rgb } = PDFLib
     
-    function generateUID() {
-    var firstPart = (Math.random() * 46656) | 0;
-    var secondPart = (Math.random() * 46656) | 0;
-    firstPart = ("000" + firstPart.toString(36)).slice(-3);
-    secondPart = ("000" + secondPart.toString(36)).slice(-3);
-    return String(firstPart + secondPart).toUpperCase();
+	function getRandomInt(min, max) {
+	  min = Math.ceil(min);
+	  max = Math.floor(max);
+	  return Math.floor(Math.random() * (max - min) + min);
+	}
+
+    function sumDigits(n) { 
+    return (--n % 9) + 1;
 }
+    
     
     function popular_campos_formulario() {
 		document.getElementById("nomeemi").value = localStorage.getItem("nomeemi");
@@ -130,6 +134,7 @@
 		reader.onerror = function (error) {
 			console.log('Error: ', error);
 			};
+		document.getElementById(campo).value = null;
 		
 	}
 	function atualizar_status_arquivos()
@@ -211,7 +216,10 @@ var data_nasc;
 		}
 		
 		codigo_cert = document.getElementById("codcert").value;
-		codigo_cert = codigo_cert==""?generateUID():codigo_cert;
+		if (codigo_cert==""){
+			let cod = getRandomInt(0,10e11);
+			codigo_cert = String(cod).padStart(11,'0') + '-' + String(sumDigits(cod)).slice(-1);
+		}
 		
 		
 		let data_vinc="";
@@ -253,14 +261,14 @@ var data_nasc;
     document.getElementById("alterar_periodo").style.display="none";
     
     let dias=0;
-	let meses=0;
-	let anos=0;
-	let tempos=[];
-	let total_dias=0;
+		let meses=0;
+		let anos=0;
+		let tempos=[];
+		let total_dias=0;
     
     
-    for (let i=0; i<dados_req.length; i++)
-    {
+		for (let i=0; i<dados_req.length; i++)
+		{
 		
 		data_desvinc= converter_data(dados_req[i]["DATA DE DESVINCULAÇÃO NA ORIGEM"]);
 		data_vinc=converter_data(dados_req[i]['DATA DE INGRESSO NA ORIGEM']);
@@ -270,6 +278,7 @@ var data_nasc;
 		dias= dias-anos*365;
 		meses = Math.floor(dias/30);
 		dias = dias - meses*30;
+		
 		tempos.push({
 			"de":data_vinc.toLocaleDateString("pt-BR"),
 			"ate":data_desvinc.toLocaleDateString("pt-BR"),
@@ -277,8 +286,8 @@ var data_nasc;
 			"meses":meses,
 			"anos":anos});
 		}
-	while (tempos.length<5)
-	{
+		while (tempos.length<5)
+		{
 			tempos.push({
 				"de":"",
 				"ate":"",
@@ -292,13 +301,13 @@ var data_nasc;
 		tot_dias= tot_dias-tot_anos*365;
 		let tot_meses = Math.floor(tot_dias/30);
 		tot_dias= tot_dias - tot_meses*30;
-
+		
 		let tot_tempo = tot_anos==0?"":(String(tot_anos)+" ano(s),");
 		tot_tempo =  tot_tempo + (tot_meses==0?"":(String(tot_meses)+" mês(es),"));
 		tot_tempo =  tot_tempo + (tot_dias==0?"":(String(tot_dias)+" dia(s)"));
 		tot_tempo = tot_tempo[-1]==","?tot_tempo.slice(0, -1):tot_tempo;
 		tot_tempo = tot_tempo.replace(/,/g,", ");
-
+		
 		let tabela_dados={'cargo': dados_req[0]["CARGO"],
 			'codigo': codigo_cert,
 			'cpf': formatarcpf(dados_req[0]['CPF']),
